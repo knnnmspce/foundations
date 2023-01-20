@@ -11,8 +11,15 @@ const app = express();
 app.use(bodyParser.json());
 
 app.post('/login', async (req, res) => {
-    const username = req.body.username.toLowerCase();
-    const password = req.body.password;
+    if(req.body.username && req.body.password){
+        const username = req.body.username.toLowerCase();
+        const password = req.body.password;
+    } else{
+        res.statusCode = 400;
+        res.send({
+            'message': 'You must enter a valid username and password'
+        });
+    }
 
     const data = await retrieveUserByUsername(username);
     const userItem = data.Item;
@@ -40,8 +47,15 @@ app.post('/login', async (req, res) => {
 })
 
 app.post('/signup', async (req, res) => {
-    const username = req.body.username.toLowerCase();
-    const password = req.body.password;
+    if(req.body.username && req.body.password){
+        const username = req.body.username.toLowerCase();
+        const password = req.body.password;
+    } else{
+        res.statusCode = 400;
+        res.send({
+            'message': 'ERROR! You must enter both a username and password to sign up'
+        })
+    }
     const data = await retrieveUserByUsername(username);
     const userItem = data.Item;
     if(userItem){
@@ -61,8 +75,7 @@ app.post('/signup', async (req, res) => {
                 'message': 'There was a problem adding the user.'
             });
         }
-    }
-    
+    }  
 });
 
 app.listen(PORT, () => {
