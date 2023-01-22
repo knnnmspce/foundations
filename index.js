@@ -11,69 +11,77 @@ const app = express();
 app.use(bodyParser.json());
 
 app.post('/login', async (req, res) => {
+    let sufficiency = false;
     if(req.body.username && req.body.password){
         const username = req.body.username.toLowerCase();
         const password = req.body.password;
+        sufficiency = true;
     } else{
-        res.statusCode = 400;
+        res.statusCode = 400;          
         res.send({
-            'message': 'You must enter a valid username and password'
+            'message': 'You must enter a valid username AND password'
         });
     }
 
-    const data = await retrieveUserByUsername(username);
-    const userItem = data.Item;
+    if(sufficiency){
+        const data = await retrieveUserByUsername(username);
+        const userItem = data.Item;
+    
+        if(userItem){
+            if(userItem.password === password) {
+                const token = createJWT(userItem.username, userItem.authority);
 
-    if(userItem){
-        if(userItem.password === password) {
-            const token = createJWT(userItem.username, userItem.authority);
-
-            res.send({
-                'message': 'Authentication Successful',
-                'token': token
-            });
+                res.send({
+                    'message': 'Authentication Successful',
+                    'token': token
+                });
+            } else{
+                res.statusCode = 400;
+                res.send({
+                    'message': 'Invalid credentials. Please make sure you typed your username and password correctly'
+                })
+            }
         } else{
             res.statusCode = 400;
             res.send({
-                'message': 'Invalid credentials. Please make sure you typed your username and password correctly'
+                'message': `Username ${username} does not exist`
             })
         }
-    } else{
-        res.statusCode = 400;
-        res.send({
-            'message': `Username ${username} does not exist`
-        })
     }
 })
 
 app.post('/signup', async (req, res) => {
+    let sufficiency = false;
     if(req.body.username && req.body.password){
         const username = req.body.username.toLowerCase();
         const password = req.body.password;
+        sufficiency = true;
     } else{
         res.statusCode = 400;
         res.send({
             'message': 'ERROR! You must enter both a username and password to sign up'
         })
     }
-    const data = await retrieveUserByUsername(username);
-    const userItem = data.Item;
-    if(userItem){
-        res.statusCode = 400;
-        res.send({
-            'message': 'ERROR! The username already exist!'
-        });
-    } else{
-        const result = await createNewUser(username, password);
-        if(result){
-            res.send({
-                'message': 'Successfully added new user'
-            });
-        } else {
+    if(sufficiency){
+        const data = await retrieveUserByUsername(username);
+        const userItem = data.Item;
+        if(userItem){
             res.statusCode = 400;
             res.send({
-                'message': 'There was a problem adding the user.'
+                'message': 'ERROR! The username already exist!'
             });
+        } else{
+            const result = await createNewUser(username, password);
+            if(result){
+                res.send({
+                    'message': 'Successfully added new user'
+                });
+            } else {
+                res.statusCode = 400;
+                res.send({
+                    'message': 'There was a problem adding the user.'
+                });
+            }
         }
     }  
 });
