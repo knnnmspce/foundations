@@ -1,4 +1,5 @@
 const AWS = require('aws-sdk');
+const uuid = require('uuid');
 
 AWS.config.update({
     region: 'us-east-2'
@@ -6,24 +7,39 @@ AWS.config.update({
 
 const docClient = new AWS.DynamoDB.DocumentClient();
 
-function retrieveUserByUsername(user_id){
+function retrieveUserByUsername(username){
     const params = {
-        TableName: 'tickets',
+        TableName: 'reimburse_users',
         Key: {
-            user_id
+            username
         }
     }
 
     return docClient.get(params).promise();
 }
 
-function createNewUser(user_id, password){
+function createNewUser(username, password){
     const params = {
-        TableName: 'tickets',
+        TableName: 'reimburse_users',
         Item: {
-            user_id,
+            username,
             password,
             authority_lvl: 'employee' //setting the default authority level to employee by default
+        }
+    }
+
+    return docClient.put(params).promise();
+}
+
+function createNewTicket(username, amount, description){
+    const params = {
+        TableName: 'reimburse_tickets',
+        Item: {
+            username,
+            amount,
+            description,
+            status: 'pending',
+            ticket_id: uuid.v4()
         }
     }
 
@@ -40,5 +56,6 @@ function createNewUser(user_id, password){
 
 module.exports = {
     retrieveUserByUsername,
-    createNewUser
+    createNewUser,
+    createNewTicket
 }

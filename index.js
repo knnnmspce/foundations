@@ -1,7 +1,7 @@
 const express = require('express');
 const parser = require('body-parser');
 
-const {retrieveUserByUsername, createNewUser} = require('./userDAO');
+const {retrieveUserByUsername, createNewUser, createNewTicket} = require('./userDAO');
 const bodyParser = require('body-parser');
 const {createJWT, verifyTokenAndReturnPL} = require('./jwt-util');
 
@@ -12,9 +12,10 @@ app.use(bodyParser.json());
 
 app.post('/login', async (req, res) => {
     let sufficiency = false;
+    const username = req.body.username.toLowerCase();
+    const password = req.body.password;
+
     if(req.body.username && req.body.password){
-        const username = req.body.username.toLowerCase();
-        const password = req.body.password;
         sufficiency = true;
     } else{
         res.statusCode = 400;          
@@ -29,8 +30,9 @@ app.post('/login', async (req, res) => {
     
         if(userItem){
             if(userItem.password === password) {
-                const token = createJWT(userItem.username, userItem.authority);
-
+                const token = createJWT(userItem.username, userItem.authority_lvl);
+                console.log(userItem.username);
+                console.log(userItem.authority_lvl);
                 res.send({
                     'message': 'Authentication Successful',
                     'token': token
@@ -52,9 +54,9 @@ app.post('/login', async (req, res) => {
 
 app.post('/signup', async (req, res) => {
     let sufficiency = false;
+    const username = req.body.username.toLowerCase();
+    const password = req.body.password;
     if(req.body.username && req.body.password){
-        const username = req.body.username.toLowerCase();
-        const password = req.body.password;
         sufficiency = true;
     } else{
         res.statusCode = 400;
@@ -85,6 +87,46 @@ app.post('/signup', async (req, res) => {
         }
     }  
 });
+
+app.post('/fileticket', async (req, res) => {
+    const amount = req.body.amount;
+    const description = req.body.description;
+    let isEligble = false;
+
+    try{
+        const authorizationHeader = req.headers.authorization;
+        const token = authorizationHeader.split(" ")[1];
+        const tokenPayload = await verifyTokenAndReturnPL(token);
+        if(tokenPayload.authority_lvl === "employee"){
+            isEligble = true;
+            if(amount && description){
+                const result = await createNewTicket(tokenPayload.username, amount, description);
+                res.statusCode = 201;
+                res.send('Ticket Created!');
+            }else{
+                res.send('Please enter an amount and description');
+            }
+        }else{
+            res.send('User does not have the rights for ticket submission through this system');
+        }
+    }catch(err){
+        if(err.name === 'JsonWebTokenError'){
+            res.statusCode = 400;
+            res.send({
+                'message': 'Invalid web token'
+            });
+        }else if(err.name === 'TypeError'){
+            res.statusCode = 400;
+            res.send({
+                'message': 'No authorization header was provided'
+            });
+        } else{
+            res.statusCode = 500;
+            res.end;
+        }
+    }
+    
+})
 
 app.listen(PORT, () => {
     console.log(`Listening on port ${PORT}`);

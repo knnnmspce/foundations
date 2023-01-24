@@ -2,10 +2,10 @@ const jwt = require('jsonwebtoken');
 const Promise = require('bluebird');
 const {DocumentCLient} = require('aws-sdk/clients/dynamodb');
 
-function createJWT(username, authority){
+function createJWT(username, authority_lvl){
     return jwt.sign({
-        username,
-        authority
+        "username": username,
+        "authority_lvl": authority_lvl
     }, 'private',
     {
         expiresIn: '1d'
