@@ -18,6 +18,17 @@ function retrieveUserByUsername(username){
     return docClient.get(params).promise();
 }
 
+function getTicketByTicketID(ticket_id){
+    const params = {
+        TableName: 'reimburse_tickets',
+        Key: {
+            ticket_id
+        }
+    }
+    
+    return docClient.get(params).promise();
+}
+
 function createNewUser(username, password){
     const params = {
         TableName: 'reimburse_users',
@@ -46,6 +57,41 @@ function createNewTicket(username, amount, description){
     return docClient.put(params).promise();
 }
 
+function updateTicketStatus(ticket_id, status){
+    const params = {
+        TableName: 'reimburse_tickets',
+
+        Key: {
+            ticket_id
+        },
+        UpdateExpression: 'SET #s = :status',
+        ExpressionAttributeNames: {
+            "#s": "status"
+        },
+        ExpressionAttributeValues: {
+            ':status': status
+        }
+    }
+
+    return docClient.update(params).promise();
+}
+
+function getPendingTickets(){
+    const params = {
+        TableName: 'reimburse_tickets',
+        IndexName: 'status-index',
+        KeyConditionExpression: '#s = :status',
+        ExpressionAttributeNames: {
+            '#s': 'status'
+        },
+        ExpressionAttributeValues: {
+            ':status': 'pending'
+        }
+    }
+
+    return docClient.query(params).promise();
+}
+
 //function updateUserAuthority();
 
 //function getTicketList();
@@ -57,5 +103,8 @@ function createNewTicket(username, amount, description){
 module.exports = {
     retrieveUserByUsername,
     createNewUser,
-    createNewTicket
+    createNewTicket,
+    updateTicketStatus,
+    getTicketByTicketID,
+    getPendingTickets
 }

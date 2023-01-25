@@ -1,9 +1,10 @@
 const express = require('express');
 const parser = require('body-parser');
 
-const {retrieveUserByUsername, createNewUser, createNewTicket} = require('./userDAO');
+const {retrieveUserByUsername, createNewUser, createNewTicket, updateTicketStatus, getTicketByTicketID, getPendingTickets} = require('./userDAO');
 const bodyParser = require('body-parser');
 const {createJWT, verifyTokenAndReturnPL} = require('./jwt-util');
+const e = require('express');
 
 const PORT = 8080;
 const app = express();
@@ -31,8 +32,6 @@ app.post('/login', async (req, res) => {
         if(userItem){
             if(userItem.password === password) {
                 const token = createJWT(userItem.username, userItem.authority_lvl);
-                console.log(userItem.username);
-                console.log(userItem.authority_lvl);
                 res.send({
                     'message': 'Authentication Successful',
                     'token': token
@@ -91,14 +90,12 @@ app.post('/signup', async (req, res) => {
 app.post('/fileticket', async (req, res) => {
     const amount = req.body.amount;
     const description = req.body.description;
-    let isEligble = false;
 
     try{
         const authorizationHeader = req.headers.authorization;
         const token = authorizationHeader.split(" ")[1];
         const tokenPayload = await verifyTokenAndReturnPL(token);
         if(tokenPayload.authority_lvl === "employee"){
-            isEligble = true;
             if(amount && description){
                 const result = await createNewTicket(tokenPayload.username, amount, description);
                 res.statusCode = 201;
@@ -122,10 +119,87 @@ app.post('/fileticket', async (req, res) => {
             });
         } else{
             res.statusCode = 500;
-            res.end;
+            res.send('Server error');
         }
     }
     
+})
+
+app.patch('/ticketmanagement', async (req, res) => {
+    const status = req.body.status;
+    const ticket_id = req.body.ticket_id;
+
+    try{
+        const authorizationHeader = req.headers.authorization;
+        const token = authorizationHeader.split(" ")[1];
+        const tokenPayload = await verifyTokenAndReturnPL(token);
+
+        const data = await getTicketByTicketID(ticket_id);
+        const ticket = data.Item;
+        const currentStatus = ticket.status;
+
+        if(tokenPayload.authority_lvl === "admin"){
+            if(currentStatus === "pending"){
+                updateTicketStatus(ticket_id, status);
+                res.send(`Updated ticket number ${ticket_id}'s status to ${status}`);
+            } else {
+                res.statusCode = 400;
+                res.send("Unable to update ticket status on tickets that have already been approved or denied.")
+            }
+        } else{
+            res.statusCode = 400;
+            res.send('Only an admin can approve or deny tickets.');
+        }
+    } catch(err){
+        if(typeof ticket == 'undefined'){
+            res.statusCode = 400;
+            res.send("Ticket does not exist!");
+        } else if(err.name === 'JsonWebTokenError'){
+            res.statusCode = 400;
+            res.send({
+                'message': 'Invalid web token'
+            });
+        } else if(err.name === 'TypeError'){
+            res.statusCode = 400;
+            res.send({
+                'message': 'No authorization header was provided'
+            });
+        } else{
+            res.statusCode = 500;
+            res.send('Server error');
+        }
+    }
+})
+
+app.get('/pendingtickets', async (req, res) => {
+    try{
+        const authorizationHeader = req.headers.authorization;
+        const token = authorizationHeader.split(" ")[1];
+        const tokenPayload = await verifyTokenAndReturnPL(token);
+
+        if(tokenPayload.authority_lvl === 'admin'){
+            const list = await getPendingTickets();
+            res.send(list);
+        } else {
+            res.statusCode = 400;
+            res.send('Only an admin can view all pending tickets');
+        }
+    } catch(err){
+        if(err.name === 'JsonWebTokenError'){
+            res.statusCode = 400;
+            res.send({
+                'message': 'Invalid web token'
+            });
+        }else if(err.name === 'TypeError'){
+            res.statusCode = 400;
+            res.send({
+                'message': 'No authorization header was provided'
+            });
+        } else{
+            res.statusCode = 500;
+            res.send('Server error');
+        }
+    }
 })
 
 app.listen(PORT, () => {
