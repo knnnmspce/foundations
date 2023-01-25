@@ -1,7 +1,7 @@
 const express = require('express');
 const parser = require('body-parser');
 
-const {retrieveUserByUsername, createNewUser, createNewTicket, updateTicketStatus, getTicketByTicketID, getPendingTickets} = require('./userDAO');
+const {retrieveUserByUsername, createNewUser, createNewTicket, updateTicketStatus, getTicketByTicketID, getPendingTickets, getTicketHistory} = require('./userDAO');
 const bodyParser = require('body-parser');
 const {createJWT, verifyTokenAndReturnPL} = require('./jwt-util');
 const e = require('express');
@@ -183,6 +183,39 @@ app.get('/pendingtickets', async (req, res) => {
         } else {
             res.statusCode = 400;
             res.send('Only an admin can view all pending tickets');
+        }
+    } catch(err){
+        if(err.name === 'JsonWebTokenError'){
+            res.statusCode = 400;
+            res.send({
+                'message': 'Invalid web token'
+            });
+        }else if(err.name === 'TypeError'){
+            res.statusCode = 400;
+            res.send({
+                'message': 'No authorization header was provided'
+            });
+        } else{
+            res.statusCode = 500;
+            res.send('Server error');
+        }
+    }
+})
+
+app.get('/tickethistory', async (req, res) => {
+    try{
+        const authorizationHeader = req.headers.authorization;
+        const token = authorizationHeader.split(" ")[1];
+        const tokenPayload = await verifyTokenAndReturnPL(token);
+
+        if(tokenPayload.authority_lvl === 'employee'){
+            const list = await getTicketHistory(tokenPayload.username);
+            res.send(list);
+        } else {
+            res.statusCode = 400;
+            res.send({
+                'message': 'Sign into an employee account to view ticket history for a user.'
+            });
         }
     } catch(err){
         if(err.name === 'JsonWebTokenError'){

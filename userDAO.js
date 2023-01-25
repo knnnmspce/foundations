@@ -92,13 +92,20 @@ function getPendingTickets(){
     return docClient.query(params).promise();
 }
 
-//function updateUserAuthority();
-
-//function getTicketList();
-
-//function approveTicketRequest();
-
-//function denyTicketRequest();
+function getTicketHistory(username){
+    const params = {
+        TableName: 'reimburse_tickets',
+        IndexName: 'username-index',
+        KeyConditionExpression: '#u = :username',
+        ExpressionAttributeNames: {
+            '#u': 'username'
+        },
+        ExpressionAttributeValues:{
+            ':username': username
+        }
+    }
+    return docClient.query(params).promise();
+}
 
 module.exports = {
     retrieveUserByUsername,
@@ -106,5 +113,6 @@ module.exports = {
     createNewTicket,
     updateTicketStatus,
     getTicketByTicketID,
-    getPendingTickets
+    getPendingTickets,
+    getTicketHistory
 }
