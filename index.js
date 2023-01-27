@@ -1,7 +1,9 @@
 const express = require('express');
 const parser = require('body-parser');
 
-const {retrieveUserByUsername, createNewUser, createNewTicket, updateTicketStatus, getTicketByTicketID, getPendingTickets, getTicketHistory} = require('./userDAO');
+const {retrieveUserByUsername, createNewUser} = require('./userDAO');
+const{createNewTicket, updateTicketStatus, getTicketByTicketID, getPendingTickets, getTicketHistory} = require('./ticketDAO.js');
+const{validateData} = require('./validation');
 const bodyParser = require('body-parser');
 const {createJWT, verifyTokenAndReturnPL} = require('./jwt-util');
 const e = require('express');
@@ -78,7 +80,7 @@ app.post('/signup', async (req, res) => {
                     'message': 'Successfully added new user'
                 });
             } else {
-                res.statusCode = 400;
+                res.statusCode = 500;
                 res.send({
                     'message': 'There was a problem adding the user.'
                 });
@@ -87,7 +89,7 @@ app.post('/signup', async (req, res) => {
     }  
 });
 
-app.post('/fileticket', async (req, res) => {
+app.post('/tickets', async (req, res) => {
     const amount = req.body.amount;
     const description = req.body.description;
 
@@ -96,12 +98,13 @@ app.post('/fileticket', async (req, res) => {
         const token = authorizationHeader.split(" ")[1];
         const tokenPayload = await verifyTokenAndReturnPL(token);
         if(tokenPayload.authority_lvl === "employee"){
-            if(amount && description){
+            const check = validateData(amount, description);
+            if(check){
                 const result = await createNewTicket(tokenPayload.username, amount, description);
                 res.statusCode = 201;
                 res.send('Ticket Created!');
             }else{
-                res.send('Please enter an amount and description');
+                res.send('Please enter an amount greater than zero and description');
             }
         }else{
             res.send('User does not have the rights for ticket submission through this system');
@@ -117,6 +120,11 @@ app.post('/fileticket', async (req, res) => {
             res.send({
                 'message': 'No authorization header was provided'
             });
+        } else if(err.name === 'TokenExpiredError'){
+            res.statusCode = 400;
+            res.send({
+                'message': 'Invalid web token. Web token has expired'
+            });
         } else{
             res.statusCode = 500;
             res.send('Server error');
@@ -125,7 +133,7 @@ app.post('/fileticket', async (req, res) => {
     
 })
 
-app.patch('/ticketmanagement', async (req, res) => {
+app.patch('/reviews', async (req, res) => {
     const status = req.body.status;
     const ticket_id = req.body.ticket_id;
 
@@ -164,6 +172,11 @@ app.patch('/ticketmanagement', async (req, res) => {
             res.send({
                 'message': 'No authorization header was provided'
             });
+        }else if(err.name === 'TokenExpiredError'){
+            res.statusCode = 400;
+            res.send({
+                'message': 'Invalid web token. Web token has expired'
+            });
         } else{
             res.statusCode = 500;
             res.send('Server error');
@@ -195,6 +208,11 @@ app.get('/pendingtickets', async (req, res) => {
             res.send({
                 'message': 'No authorization header was provided'
             });
+        }else if(err.name === 'TokenExpiredError'){
+            res.statusCode = 400;
+            res.send({
+                'message': 'Invalid web token. Web token has expired'
+            }); 
         } else{
             res.statusCode = 500;
             res.send('Server error');
@@ -202,7 +220,7 @@ app.get('/pendingtickets', async (req, res) => {
     }
 })
 
-app.get('/tickethistory', async (req, res) => {
+app.get('/histories', async (req, res) => {
     try{
         const authorizationHeader = req.headers.authorization;
         const token = authorizationHeader.split(" ")[1];
@@ -228,8 +246,14 @@ app.get('/tickethistory', async (req, res) => {
             res.send({
                 'message': 'No authorization header was provided'
             });
+        }else if(err.name === 'TokenExpiredError'){
+            res.statusCode = 400;
+            res.send({
+                'message': 'Invalid web token. Web token has expired'
+            });
         } else{
             res.statusCode = 500;
+            console.log(err);
             res.send('Server error');
         }
     }
